@@ -20,6 +20,7 @@ import android.hardware.SensorManager;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.util.Log;
 
 import java.nio.ByteBuffer;
@@ -42,6 +43,8 @@ public class BLEService extends Service implements SensorEventListener{
     private SensorManager mSensorManager;
     private Sensor accSensor;
     private Sensor gyroSensor;
+    private Sensor ppgSensor;
+    private Sensor hrSensor;
     private int OFFSET_ACC = 1000;
     private int OFFSET_GYR = 10000;
     private int sensorStatus = STATUS_NONE;
@@ -96,6 +99,7 @@ public class BLEService extends Service implements SensorEventListener{
     private int lastBattery = -1;
 
     private boolean shouldStop = false;
+    private PowerManager.WakeLock wakeLock;
     /**
      * waiting for the stop broadcast, when received start to disconnect the glasses and stop the service
      */
@@ -122,7 +126,7 @@ public class BLEService extends Service implements SensorEventListener{
                 lastBattery = level;
                 return;
             } else {
-                if (level - lastBattery >= 3) {
+                if (lastBattery - level >= 3) {
                     Log.d(TAG, "battery " + String.valueOf(level));
                     ByteBuffer bb = ByteBuffer.allocate(BYTE_NUM_DEV_ID_AND_TYPE + BYTE_NUM_BATTERY_LIFE);
                     bb.put(DEV_ID.getBytes());
@@ -148,6 +152,9 @@ public class BLEService extends Service implements SensorEventListener{
     public void onCreate() {
         Log.v(TAG, "ServiceDemo onCreate");
         super.onCreate();
+        PowerManager mgr = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakeLock");
+        wakeLock.acquire();
         startForeground(0, null); // make the server not able to be killed
     }
 
@@ -165,8 +172,12 @@ public class BLEService extends Service implements SensorEventListener{
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE); // get SensorManager
         accSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER); // get Accelerometer
         gyroSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE); // get Gyroscope
+        ppgSensor = mSensorManager.getDefaultSensor(65545);
+        hrSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE);
         mSensorManager.registerListener(this, accSensor, DELAY_20HZ); // 20hz
         mSensorManager.registerListener(this, gyroSensor, DELAY_20HZ); //20hz
+        mSensorManager.registerListener(this, ppgSensor, SensorManager.SENSOR_DELAY_FASTEST);
+        mSensorManager.registerListener(this, hrSensor, SensorManager.SENSOR_DELAY_NORMAL);
 
         new Thread(new Runnable() { // create a thread to make fake glass acc data package and glass environment data package
             @Override
@@ -284,6 +295,7 @@ public class BLEService extends Service implements SensorEventListener{
         unregisterReceiver(stopInfoReceiver);
         unregisterReceiver(mBatInfoReceiver);
         mSensorManager.unregisterListener(this);
+        wakeLock.release();
         stopForeground(true);
     }
 
@@ -385,6 +397,10 @@ public class BLEService extends Service implements SensorEventListener{
                     sendSensorDataNum = 0;
                 }
             }
+        } else if (sensorType == Sensor.TYPE_HEART_RATE) {
+            hr = (int) sensorEvent.values[0];
+        } else if (sensorType == 65545) {
+            ppg = (int) sensorEvent.values[0];
         }
     }
 

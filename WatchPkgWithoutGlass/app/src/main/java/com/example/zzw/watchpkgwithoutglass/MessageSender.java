@@ -22,7 +22,7 @@ public class MessageSender {
     private int servPort = 4566;
 
     // the ip address of the server PC or android phone
-    private static final String Server_IP = "192.168.0.110";
+    private static final String Server_IP = "192.168.0.120";
 
     // Since asynchronous/blocking functions should not run on the UI thread.
     private ExecutorService executorService;
