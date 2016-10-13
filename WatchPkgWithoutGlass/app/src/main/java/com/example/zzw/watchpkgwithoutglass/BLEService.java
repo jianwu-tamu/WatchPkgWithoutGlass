@@ -51,16 +51,17 @@ public class BLEService extends Service implements SensorEventListener{
     private byte[] lastData = null;
     private int DELAY_20HZ = 50000;
 
+    private String ip;
     private MessageSender sender; // socket data sender object
 
     /**
      * variables related to the package sending frequency and number of samples in one package
      */
-    private static final int DATA_NUM_LIMIT_SENSOR = 24;
-    private static final int DATA_NUM_LIMIT_GLASS = 20;
+    private static final int DATA_NUM_LIMIT_SENSOR = 50;
+    private static final int DATA_NUM_LIMIT_GLASS = 40;
     private static final int DATA_NUM_LIMIT_ENVIRONMENT = 60;
-    private static final int DATA_UNIT_SENSOR = 24;
-    private static final int DATA_UNIT_GLASS = 20;
+    private static final int DATA_UNIT_SENSOR = 50;
+    private static final int DATA_UNIT_GLASS = 40;
     private static final int DATA_UNIT_ENVIRONMENT = 60;
 
     /**
@@ -85,6 +86,7 @@ public class BLEService extends Service implements SensorEventListener{
     private ArrayList<byte[]> sensorDataBuffer;
     private ArrayList<byte[]> glassDataBuffer;
     private ArrayList<byte[]> environmentDataBuffer;
+    private ArrayList<Integer> ppgDataBuffer;
 
     /**
      * variables related to package members
@@ -152,6 +154,7 @@ public class BLEService extends Service implements SensorEventListener{
     public void onCreate() {
         Log.v(TAG, "ServiceDemo onCreate");
         super.onCreate();
+
         PowerManager mgr = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakeLock");
         wakeLock.acquire();
@@ -161,6 +164,9 @@ public class BLEService extends Service implements SensorEventListener{
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.v(TAG, "ServiceDemo onStartCommand");
+        ip = intent.getExtras().getString(MainActivity.IP_SAVED_KEY);
+
+        ppgDataBuffer = new ArrayList<>();
         initialize();
 
         // register the two broadcast receivers
@@ -280,12 +286,12 @@ public class BLEService extends Service implements SensorEventListener{
             }
         }).start();
 
-        return super.onStartCommand(intent, flags, startId);
+        return Service.START_STICKY;
     }
 
     public boolean initialize() {
         // get the instance of the socket sender
-        sender = MessageSender.getInstance();
+        sender = MessageSender.getInstance(ip);
 
         return true;
     }
@@ -322,7 +328,7 @@ public class BLEService extends Service implements SensorEventListener{
                     ByteBuffer bb = ByteBuffer.allocate(BYTE_NUM_WATCH_SAMPLE);
                     bb.put(float2ByteArray(sensorEvent.values, OFFSET_GYR));
                     bb.put(lastData);
-                    bb.put(int23ByteArray(ppg));
+                    bb.put(int23ByteArray(ppgDataBuffer.size() > 0 ? ppgDataBuffer.remove(0) : ppg));
                     bb.put(((byte)(hr & 0xff)));
                     bb.put(getTimeStampByteArray());
                     sensorDataBuffer.add(bb.array());
@@ -331,7 +337,7 @@ public class BLEService extends Service implements SensorEventListener{
                     ByteBuffer bb = ByteBuffer.allocate(BYTE_NUM_WATCH_SAMPLE);
                     bb.put(float2ByteArray(sensorEvent.values, OFFSET_GYR));
                     bb.put(lastData);
-                    bb.put(int23ByteArray(ppg));
+                    bb.put(int23ByteArray(ppgDataBuffer.size() > 0 ? ppgDataBuffer.remove(0) : ppg));
                     bb.put(((byte)(hr & 0xff)));
                     bb.put(getTimeStampByteArray());
                     sensorDataBuffer.add(bb.array());
@@ -366,7 +372,7 @@ public class BLEService extends Service implements SensorEventListener{
                     ByteBuffer bb = ByteBuffer.allocate(BYTE_NUM_WATCH_SAMPLE);
                     bb.put(lastData);
                     bb.put(float2ByteArray(sensorEvent.values, OFFSET_ACC));
-                    bb.put(int23ByteArray(ppg));
+                    bb.put(int23ByteArray(ppgDataBuffer.size() > 0 ? ppgDataBuffer.remove(0) : ppg));
                     bb.put(((byte)(hr & 0xff)));
                     bb.put(getTimeStampByteArray());
                     sensorDataBuffer.add(bb.array());
@@ -375,7 +381,7 @@ public class BLEService extends Service implements SensorEventListener{
                     ByteBuffer bb = ByteBuffer.allocate(BYTE_NUM_WATCH_SAMPLE);
                     bb.put(lastData);
                     bb.put(float2ByteArray(sensorEvent.values, OFFSET_ACC));
-                    bb.put(int23ByteArray(ppg));
+                    bb.put(int23ByteArray(ppgDataBuffer.size() > 0 ? ppgDataBuffer.remove(0) : ppg));
                     bb.put(((byte)(hr & 0xff)));
                     bb.put(getTimeStampByteArray());
                     sensorDataBuffer.add(bb.array());
@@ -401,6 +407,7 @@ public class BLEService extends Service implements SensorEventListener{
             hr = (int) sensorEvent.values[0];
         } else if (sensorType == 65545) {
             ppg = (int) sensorEvent.values[0];
+            ppgDataBuffer.add(ppg);
         }
     }
 

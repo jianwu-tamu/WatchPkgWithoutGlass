@@ -22,12 +22,13 @@ public class MessageSender {
     private int servPort = 4566;
 
     // the ip address of the server PC or android phone
-    private static final String Server_IP = "192.168.0.120";
+    private String Server_IP;
 
     // Since asynchronous/blocking functions should not run on the UI thread.
     private ExecutorService executorService;
 
-    private MessageSender() {
+    private MessageSender(String ip) {
+        Server_IP = ip;
         executorService = Executors.newCachedThreadPool();
         try {
             serverAddress = InetAddress.getByName(Server_IP);
@@ -44,9 +45,9 @@ public class MessageSender {
 
     // It's a singleton class.
     private static MessageSender instance = null;
-    public static synchronized MessageSender getInstance() {
+    public static synchronized MessageSender getInstance(String ip) {
         if (instance == null) {
-            instance = new MessageSender();
+            instance = new MessageSender(ip);
         }
         return instance;
     }
