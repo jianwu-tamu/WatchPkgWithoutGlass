@@ -1,5 +1,6 @@
 package com.example.zzw.watchpkgwithoutglass;
 
+import android.app.Notification;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
@@ -154,16 +155,21 @@ public class BLEService extends Service implements SensorEventListener{
     public void onCreate() {
         Log.v(TAG, "ServiceDemo onCreate");
         super.onCreate();
-
-        PowerManager mgr = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakeLock");
-        wakeLock.acquire();
-        startForeground(0, null); // make the server not able to be killed
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.v(TAG, "ServiceDemo onStartCommand");
+
+        PowerManager mgr = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakeLock");
+        wakeLock.acquire();
+
+        Notification.Builder builder = new Notification.Builder(this);
+        Notification note = builder.build();
+        note.flags |= Notification.FLAG_NO_CLEAR;
+
+        startForeground(1234, note); // make the server not able to be killed
         ip = intent.getExtras().getString(MainActivity.IP_SAVED_KEY);
 
         ppgDataBuffer = new ArrayList<>();
